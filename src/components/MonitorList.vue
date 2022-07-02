@@ -3,6 +3,16 @@
         <div class="list-header">
             <div class="placeholder"></div>
             <div class="search-wrapper">
+                <div class="filter-form">
+                    <!-- TODO: i18n-->
+                    <label class="search-icon" for="filter">Filter:</label>
+                    <select name="filter" id="filter" class="form-select" v-model="filter">
+                        <option :filter="'none'" value="none" >none</option>
+                        <option :value="1">up</option>
+                        <option :value="0">down</option>
+                    </select>
+                    <button @click="filteredMonitorList()">b</button>
+                </div>
                 <a v-if="searchText == ''" class="search-icon">
                     <font-awesome-icon icon="search" />
                 </a>
@@ -67,6 +77,7 @@ export default {
         return {
             searchText: "",
             windowTop: 0,
+            filter: "none"
         };
     },
     computed: {
@@ -90,6 +101,7 @@ export default {
 
         sortedMonitorList() {
             let result = Object.values(this.$root.monitorList);
+            this.filter;
 
             result.sort((m1, m2) => {
 
@@ -120,15 +132,27 @@ export default {
             // finds monitor name, tag name or tag value
             if (this.searchText !== "") {
                 const loweredSearchText = this.searchText.toLowerCase();
+
                 result = result.filter(monitor => {
                     return monitor.name.toLowerCase().includes(loweredSearchText)
                     || monitor.tags.find(tag => tag.name.toLowerCase().includes(loweredSearchText)
                     || tag.value?.toLowerCase().includes(loweredSearchText));
                 });
             }
+            // and uptime status
+            if(this.filter != "none"){
+                result.filter(monitor => {
+                    const beat = this.getLatestHeartbeatByMonitorId(monitor.id);
+                    if(beat.status === this.filter){
+                        return monitor;
+                    }
+                })
+            }
+            console.log(result);
+            
 
             return result;
-        },
+        }
     },
     mounted() {
         window.addEventListener("scroll", this.onScroll);
@@ -156,6 +180,23 @@ export default {
         /** Clear the search bar */
         clearSearchText() {
             this.searchText = "";
+        },
+
+        getLatestHeartbeatByMonitorId(monitorId){
+            const heartBeats = this.$root.heartbeatList[monitorId];
+                    heartBeats.sort((a,b)=> a.time - b.time);
+                    heartBeats.slice(-1);
+            return heartBeats[0];
+        },
+        filteredMonitorList(){
+            const monitors = this.sortedMonitorList;
+            monitors.filter(monitor => {
+                const latestBeat = this.getLatestHeartbeatByMonitorId(monitor.id);
+                if(this.filter != "none"){
+                    return latestBeat.status == this.filter;
+                }
+            })
+            this.sortedMonitorList = monitors;
         }
     },
 };
@@ -198,6 +239,10 @@ export default {
     }
 }
 
+.filter-form {
+    display: flex;
+}
+
 .search-wrapper {
     display: flex;
     align-items: center;
@@ -206,6 +251,11 @@ export default {
 .search-icon {
     padding: 10px;
     color: #c0c0c0;
+}
+
+.search-filter {
+    background: none;
+    border: none;
 }
 
 .search-input {
